@@ -511,7 +511,6 @@
         localStorage.setItem('prompter_mobile_font_size', val);
     }
 
-    // PLEIN ÉCRAN AUTOMATIQUE
     function enterFullscreen() {
         if (prompterWrapper.requestFullscreen) {
             prompterWrapper.requestFullscreen();
@@ -545,16 +544,17 @@
 
     async function initMicrophone() {
         try {
-            // Uniquement l'audio
             const stream = await navigator.mediaDevices.getUserMedia({ 
                 video: false, 
                 audio: true 
             });
             localStream = stream;
             micPlaceholder.innerHTML = "<span style='color: #2ecc71; font-weight: bold;'>🎙️ Microphone activé et prêt</span>";
+            return true;
         } catch (error) {
             console.error("Erreur d'accès au micro : ", error);
             micPlaceholder.innerHTML = "<span style='color: #e74c3c; font-size:0.8rem;'>Microphone indisponible.<br>Vérifiez les autorisations de votre navigateur.</span>";
+            return false;
         }
     }
 
@@ -689,7 +689,7 @@
         recordedChunks = [];
         let options = { mimeType: 'audio/webm' };
         if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { mimeType: 'audio/ogg' };
-        if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { mimeType: '' }; // Fallback universel
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { mimeType: '' }; 
 
         try { mediaRecorder = new MediaRecorder(localStream, options); } catch (e) { mediaRecorder = new MediaRecorder(localStream); }
 
@@ -721,8 +721,12 @@
         recBadge.style.display = 'none';
     }
 
-    function toggleTimer() {
-        if (!localStream) { alert("Veuillez d'abord autoriser le microphone."); return; }
+    async function toggleTimer() {
+        // Sécurité GitHub Pages/Mobile : demande tardive du micro si non fait au chargement
+        if (!localStream) { 
+            const success = await initMicrophone();
+            if (!success) { alert("Veuillez autoriser l'accès au microphone pour lancer le prompteur."); return; }
+        }
 
         if (isRunning) {
             clearInterval(timerId);
@@ -740,9 +744,7 @@
             startButton.style.background = 'var(--timer-danger)';
             downloadBtn.style.display = 'none';
             
-            // BASCULE EN PLEIN ÉCRAN AUTOMATIQUE
             enterFullscreen();
-            
             startScrolling();
 
             if (!mediaRecorder || mediaRecorder.state === 'inactive') {
