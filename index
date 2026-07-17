@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Prompteur PC Elite - Audio Mobile</title>
+    <title>Prompteur PC Elite - Mobile Épuré</title>
     <style>
         :root {
             --primary: #2c3e50;
@@ -58,58 +58,6 @@
             border-bottom: 2px solid #eee;
             padding-bottom: 8px;
             font-size: 1.05rem;
-        }
-
-        /* Statut Microphone */
-        .mic-container {
-            width: 100%;
-            background: #2c3e50;
-            border-radius: 8px;
-            padding: 12px;
-            box-sizing: border-box;
-            text-align: center;
-            margin-bottom: 15px;
-            border: 2px solid #bdc3c7;
-            position: relative;
-        }
-
-        .mic-placeholder {
-            color: #ffffff;
-            font-size: 0.9rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .rec-badge {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(231, 76, 60, 0.9);
-            color: white;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 0.7rem;
-            font-weight: bold;
-            display: none;
-            align-items: center;
-            gap: 4px;
-            z-index: 10;
-        }
-
-        .rec-dot {
-            width: 6px;
-            height: 6px;
-            background: white;
-            border-radius: 50%;
-            animation: blink 1s infinite;
-        }
-
-        @keyframes blink {
-            0% { opacity: 0.2; }
-            50% { opacity: 1; }
-            100% { opacity: 0.2; }
         }
 
         /* Contrôles compacts */
@@ -182,11 +130,10 @@
         .btn-action { background: var(--timer-ok); color: white; width: 100%; font-size: 1rem; padding: 10px; }
         .btn-danger { background: #95a5a6; color: white; }
         .btn-clear { background: #e74c3c; color: white; padding: 3px 6px; font-size: 0.7rem; border-radius: 4px; }
-        .btn-download { background: #9b59b6; color: white; display: none; width: 100%; margin-top: 8px; font-size: 0.9rem; }
 
         textarea {
             width: 100%;
-            height: 90px;
+            height: 110px;
             border: 1px solid #ccc;
             border-radius: 6px;
             padding: 8px;
@@ -353,19 +300,11 @@
 <body>
 
 <div class="container">
-    <h1>📱 Prompteur Mobile Élite (Audio)</h1>
+    <h1>📱 Prompteur Mobile Élite</h1>
 
-    <!-- CONFIGURATION & MICROPHONE -->
+    <!-- CONFIGURATION -->
     <div class="card">
-        <h2>🎙️ Enregistrement Vocale & Configuration</h2>
-        
-        <div class="mic-container">
-            <div class="rec-badge" id="rec-badge"><div class="rec-dot"></div> ENREGISTREMENT AUDIO ACTIF</div>
-            <div class="mic-placeholder" id="mic-placeholder">
-                <span>Microphone requis pour s'enregistrer</span>
-                <button class="btn-time" onclick="initMicrophone()" style="background: white; padding: 5px 10px; max-width: 180px; margin: 0 auto;">Activer le micro</button>
-            </div>
-        </div>
+        <h2>⚙️ Configuration du Visuel</h2>
 
         <div class="control-row">
             <label for="font-select">🔤 Style de police :</label>
@@ -439,7 +378,6 @@
         </div>
         
         <button class="btn-action" onclick="toggleTimer()" id="btn-start">DÉMARRER</button>
-        <button class="btn-download" id="btn-download">💾 Télécharger mon enregistrement audio</button>
         <button class="btn-danger" onclick="resetTimer()" style="width: 100%; margin-top: 8px; padding: 8px;">Réinitialiser</button>
     </div>
 
@@ -450,11 +388,7 @@
     let timeLeft = duration;
     let timerId = null;
     let isRunning = false;
-    let localStream = null;
     let scrollSpeedMultiplier = 1.0; 
-
-    let mediaRecorder = null;
-    let recordedChunks = [];
 
     const timerDisplay = document.getElementById('timer');
     const fullscreenTimerDisplay = document.getElementById('fullscreen-timer');
@@ -471,10 +405,6 @@
     const textInput = document.getElementById('text-input');
     const fontSizeRange = document.getElementById('font-size-range');
     const fontSizeVal = document.getElementById('font-size-val');
-    
-    const micPlaceholder = document.getElementById('mic-placeholder');
-    const recBadge = document.getElementById('rec-badge');
-    const downloadBtn = document.getElementById('btn-download');
     const speedRange = document.getElementById('speed-range');
     const speedVal = document.getElementById('speed-val');
     const fontSelect = document.getElementById('font-select');
@@ -488,8 +418,6 @@
         if (savedSpeed) { speedRange.value = savedSpeed; changeSpeed(savedSpeed); }
         const savedFont = localStorage.getItem('prompter_mobile_font_family');
         if (savedFont) { fontSelect.value = savedFont; changeFontFamily(savedFont); }
-
-        initMicrophone();
     };
 
     textInput.addEventListener('input', () => {
@@ -521,6 +449,7 @@
         }
     }
 
+    // Sortie propre du plein écran
     function exitFullscreen() {
         if (document.exitFullscreen) {
             document.exitFullscreen();
@@ -528,6 +457,13 @@
             document.webkitExitFullscreen();
         }
     }
+
+    // Permet de synchroniser la sortie native (touche Échap / balayage Android)
+    document.addEventListener('fullscreenchange', () => {
+        if (!document.fullscreenElement && isRunning) {
+            toggleTimer(); // Met en pause si l'utilisateur quitte le plein écran manuellement
+        }
+    });
 
     function changeSpeed(val) {
         scrollSpeedMultiplier = parseFloat(val);
@@ -540,22 +476,6 @@
         prompterTextUnder.style.fontFamily = val;
         prompterTextOver.style.fontFamily = val;
         localStorage.setItem('prompter_mobile_font_family', val);
-    }
-
-    async function initMicrophone() {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: false, 
-                audio: true 
-            });
-            localStream = stream;
-            micPlaceholder.innerHTML = "<span style='color: #2ecc71; font-weight: bold;'>🎙️ Microphone activé et prêt</span>";
-            return true;
-        } catch (error) {
-            console.error("Erreur d'accès au micro : ", error);
-            micPlaceholder.innerHTML = "<span style='color: #e74c3c; font-size:0.8rem;'>Microphone indisponible.<br>Vérifiez les autorisations de votre navigateur.</span>";
-            return false;
-        }
     }
 
     function formatTextWithMarkers(text) {
@@ -685,56 +605,10 @@
 
     function stopScrolling() { cancelAnimationFrame(animationFrameId); }
 
-    function startRecording() {
-        recordedChunks = [];
-        let options = { mimeType: 'audio/webm' };
-        if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { mimeType: 'audio/ogg' };
-        if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { mimeType: '' }; 
-
-        try { mediaRecorder = new MediaRecorder(localStream, options); } catch (e) { mediaRecorder = new MediaRecorder(localStream); }
-
-        mediaRecorder.ondataavailable = function(e) {
-            if (e.data && e.data.size > 0) recordedChunks.push(e.data);
-        };
-
-        mediaRecorder.onstop = function() {
-            const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
-            const url = URL.createObjectURL(blob);
-            downloadBtn.style.display = 'block';
-            downloadBtn.onclick = function() {
-                const a = document.createElement('a');
-                a.href = url;
-                let ext = 'webm';
-                if (mediaRecorder.mimeType.includes('ogg')) ext = 'ogg';
-                else if (mediaRecorder.mimeType.includes('mp4')) ext = 'mp4';
-                else if (mediaRecorder.mimeType.includes('wav')) ext = 'wav';
-                a.download = `enregistrement_oral.${ext}`;
-                a.click();
-            };
-        };
-        mediaRecorder.start(1000);
-        recBadge.style.display = 'flex';
-    }
-
-    function stopRecording() {
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-        recBadge.style.display = 'none';
-    }
-
-    async function toggleTimer() {
-        // Sécurité GitHub Pages/Mobile : demande tardive du micro si non fait au chargement
-        if (!localStream) { 
-            const success = await initMicrophone();
-            if (!success) { alert("Veuillez autoriser l'accès au microphone pour lancer le prompteur."); return; }
-        }
-
+    function toggleTimer() {
         if (isRunning) {
             clearInterval(timerId);
             stopScrolling();
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.pause();
-                recBadge.style.background = '#7f8c8d';
-            }
             startButton.textContent = "REPRENDRE";
             startButton.style.background = 'var(--timer-warning)';
             isRunning = false;
@@ -742,17 +616,9 @@
             isRunning = true;
             startButton.textContent = "PAUSE";
             startButton.style.background = 'var(--timer-danger)';
-            downloadBtn.style.display = 'none';
             
             enterFullscreen();
             startScrolling();
-
-            if (!mediaRecorder || mediaRecorder.state === 'inactive') {
-                startRecording();
-            } else if (mediaRecorder.state === 'paused') {
-                mediaRecorder.resume();
-                recBadge.style.background = 'rgba(231, 76, 60, 0.9)';
-            }
 
             timerId = setInterval(() => {
                 if (timeLeft > 0) {
@@ -761,7 +627,6 @@
                 } else {
                     clearInterval(timerId);
                     stopScrolling();
-                    stopRecording();
                     isRunning = false;
                     startButton.textContent = "FINI";
                     startButton.style.background = '#95a5a6';
@@ -773,7 +638,6 @@
     function resetTimer() {
         clearInterval(timerId);
         stopScrolling();
-        stopRecording();
         isRunning = false;
         timeLeft = duration;
         currentScrollY = 0;
