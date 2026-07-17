@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Prompteur PC Elite - Audio Mobile</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --neutral-dark: #2f3640;
+            --bg: #f8f9fa;
+            --card: #ffffff;
+            --timer-ok: #2ecc71;
+            --timer-warning: #f39c12;
+            --timer-danger: #e74c3c;
+            --prompter-bg: #121212;
+            
+            /* Polices */
+            --font-modern: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --font-monospace: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+            --font-spaced: 'Trebuchet MS', sans-serif;
+        }
+
+        body {
+            font-family: var(--font-modern);
+            background-color: var(--bg);
+            color: var(--neutral-dark);
+            margin: 0;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: var(--primary);
+            text-align: center;
+            font-size: 1.4rem;
+            margin: 10px 0;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            margin-bottom: 15px;
+            box-sizing: border-box;
+        }
+
+        h2 {
+            color: var(--primary);
+            margin-top: 0;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 8px;
+            font-size: 1.05rem;
+        }
+
+        /* Statut Microphone */
+        .mic-container {
+            width: 100%;
+            background: #2c3e50;
+            border-radius: 8px;
+            padding: 12px;
+            box-sizing: border-box;
+            text-align: center;
+            margin-bottom: 15px;
+            border: 2px solid #bdc3c7;
+            position: relative;
+        }
+
+        .mic-placeholder {
+            color: #ffffff;
+            font-size: 0.9rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .rec-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(231, 76, 60, 0.9);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            display: none;
+            align-items: center;
+            gap: 4px;
+            z-index: 10;
+        }
+
+        .rec-dot {
+            width: 6px;
+            height: 6px;
+            background: white;
+            border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0% { opacity: 0.2; }
+            50% { opacity: 1; }
+            100% { opacity: 0.2; }
+        }
+
+        /* Contrôles compacts */
+        .control-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            gap: 8px;
+        }
+
+        .control-row label {
+            font-weight: 600;
+            font-size: 0.8rem;
+            min-width: 110px;
+        }
+
+        .slider-input {
+            flex: 1;
+            accent-color: var(--primary);
+        }
+
+        select {
+            flex: 1;
+            padding: 5px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 0.85rem;
+        }
+
+        /* Timer mobile */
+        .timer-container {
+            text-align: center;
+            padding: 2px 0;
+        }
+
+        .timer-display {
+            font-size: 2.5rem;
+            font-weight: bold;
+            font-family: monospace;
+            color: var(--timer-ok);
+        }
+
+        .timer-status-text {
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-time { background: #e2e8f0; color: var(--primary); flex: 1; }
+        .btn-time.active { background: var(--primary); color: white; }
+        .btn-action { background: var(--timer-ok); color: white; width: 100%; font-size: 1rem; padding: 10px; }
+        .btn-danger { background: #95a5a6; color: white; }
+        .btn-clear { background: #e74c3c; color: white; padding: 3px 6px; font-size: 0.7rem; border-radius: 4px; }
+        .btn-download { background: #9b59b6; color: white; display: none; width: 100%; margin-top: 8px; font-size: 0.9rem; }
+
+        textarea {
+            width: 100%;
+            height: 90px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            padding: 8px;
+            box-sizing: border-box;
+            resize: vertical;
+            font-size: 0.85rem;
+            margin-bottom: 5px;
+        }
+
+        .help-tags {
+            font-size: 0.7rem;
+            color: #7f8c8d;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        /* CONTENEUR PROMPTEUR MOBILE */
+        .prompter-wrapper {
+            position: relative;
+            background: var(--prompter-bg);
+            border-radius: 12px;
+            border: 3px solid #2c3e50;
+            height: 380px;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .reading-line {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: rgba(231, 76, 60, 0.4);
+            pointer-events: none;
+            z-index: 30;
+        }
+
+        .reading-line::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: -7px;
+            border-top: 8px solid transparent;
+            border-bottom: 8px solid transparent;
+            border-left: 12px solid #e74c3c;
+        }
+
+        .reading-line::after {
+            content: "";
+            position: absolute;
+            right: 0;
+            top: -7px;
+            border-top: 8px solid transparent;
+            border-bottom: 8px solid transparent;
+            border-right: 12px solid #e74c3c;
+        }
+
+        .prompter-box {
+            width: 100%;
+            height: 100%;
+            overflow-y: hidden;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        #prompter-box-under { z-index: 10; color: #ffffff; }
+        #prompter-box-over {
+            z-index: 20;
+            color: #2ecc71;
+            clip-path: polygon(0 0, 100% 0, 100% 50%, 0 50%); 
+            pointer-events: none;
+        }
+
+        .prompter-content {
+            padding: 180px 20px; 
+            font-size: 1.6rem; 
+            line-height: 1.7;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .marker-tag {
+            color: #e74c3c !important;
+            font-weight: 800 !important;
+            font-size: 1.1em;
+            display: block;
+            margin: 15px 0;
+            text-transform: uppercase;
+            border: 2px dashed #e74c3c;
+            padding: 5px;
+            border-radius: 6px;
+            background: rgba(231, 76, 60, 0.1);
+        }
+
+        .marker-tag.pause-style {
+            color: #3498db !important;
+            border-color: #3498db !important;
+            background: rgba(52, 152, 219, 0.15) !important;
+        }
+
+        /* --- ÉLÉMENTS HUD PLEIN ÉCRAN MOBILE --- */
+        .exit-fullscreen-btn {
+            display: none;
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            padding: 6px 10px;
+            font-size: 0.75rem;
+            z-index: 100;
+            border-radius: 4px;
+        }
+        
+        .fullscreen-timer {
+            display: none;
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            font-family: monospace;
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #2ecc71;
+            z-index: 100;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+
+        .timeline-bar-container {
+            display: none;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            z-index: 100;
+        }
+
+        .timeline-bar-progress {
+            width: 0%;
+            height: 100%;
+            background-color: #2ecc71;
+            transition: width 1s linear, background-color 0.5s ease;
+        }
+
+        /* Gestion du mode Plein écran natif */
+        .prompter-wrapper:fullscreen {
+            width: 100vw;
+            height: 100vh;
+            border: none;
+            border-radius: 0;
+        }
+
+        .prompter-wrapper:fullscreen .exit-fullscreen-btn,
+        .prompter-wrapper:fullscreen .fullscreen-timer,
+        .prompter-wrapper:fullscreen .timeline-bar-container {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📱 Prompteur Mobile Élite (Audio)</h1>
+
+    <!-- CONFIGURATION & MICROPHONE -->
+    <div class="card">
+        <h2>🎙️ Enregistrement Vocale & Configuration</h2>
+        
+        <div class="mic-container">
+            <div class="rec-badge" id="rec-badge"><div class="rec-dot"></div> ENREGISTREMENT AUDIO ACTIF</div>
+            <div class="mic-placeholder" id="mic-placeholder">
+                <span>Microphone requis pour s'enregistrer</span>
+                <button class="btn-time" onclick="initMicrophone()" style="background: white; padding: 5px 10px; max-width: 180px; margin: 0 auto;">Activer le micro</button>
+            </div>
+        </div>
+
+        <div class="control-row">
+            <label for="font-select">🔤 Style de police :</label>
+            <select id="font-select" onchange="changeFontFamily(this.value)">
+                <option value="var(--font-modern)">Moderne (Sans-Serif)</option>
+                <option value="var(--font-monospace)">Rythmée (Monospace)</option>
+                <option value="var(--font-spaced)">Aérée (Trebuchet)</option>
+            </select>
+        </div>
+        
+        <div class="control-row">
+            <label for="font-size-range">📝 Taille texte : <span id="font-size-val">1.6</span>rem</label>
+            <input type="range" id="font-size-range" class="slider-input" min="1.0" max="2.6" step="0.1" value="1.6" oninput="changeFontSize(this.value)">
+        </div>
+
+        <div class="control-row">
+            <label for="speed-range">⚡ Vitesse : <span id="speed-val">1.0</span>x</label>
+            <input type="range" id="speed-range" class="slider-input" min="0.5" max="2.0" step="0.1" value="1.0" oninput="changeSpeed(this.value)">
+        </div>
+        
+        <div class="btn-group">
+            <button class="btn-time active" onclick="setTimer(300, this)">5 Min</button>
+            <button class="btn-time" onclick="setTimer(600, this)">10 Min</button>
+            <button class="btn-time" onclick="setTimer(900, this)">15 Min</button>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+            <label style="font-weight: 600; font-size: 0.85rem;">Votre texte :</label>
+            <button class="btn-clear" onclick="clearText()">Effacer</button>
+        </div>
+        <textarea id="text-input" placeholder="Collez votre texte d'oral ici..."></textarea>
+        <div class="help-tags">Balises valides : <b>[INTRO]</b> (rouge) et <b>[PAUSE]</b> (bleu).</div>
+
+        <button class="btn-time" onclick="loadText()" style="width: 100%; background: #34495e; color: white; padding: 10px;">
+            🔄 Charger le texte dans le prompteur
+        </button>
+    </div>
+
+    <!-- ZONE PROMPTEUR MOBILE -->
+    <div class="card" style="padding: 5px; background: #2c3e50;">
+        <div class="prompter-wrapper" id="prompter-wrapper">
+            
+            <!-- HUD Plein Écran -->
+            <button class="exit-fullscreen-btn" onclick="exitFullscreen()">Quitter [Echap]</button>
+            <div class="fullscreen-timer" id="fullscreen-timer">05:00</div>
+            <div class="timeline-bar-container">
+                <div class="timeline-bar-progress" id="timeline-bar-progress"></div>
+            </div>
+
+            <div class="reading-line"></div>
+            
+            <div class="prompter-box" id="prompter-box-under">
+                <div class="prompter-content" id="prompter-text-under">
+                    [Chargez votre texte pour commencer...]
+                </div>
+            </div>
+
+            <div class="prompter-box" id="prompter-box-over">
+                <div class="prompter-content" id="prompter-text-over">
+                    [Chargez votre texte pour commencer...]
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ZONE BOUTONS INFÉRIEURE -->
+    <div class="card">
+        <div class="timer-container">
+            <div class="timer-status-text" id="timer-status" style="color: var(--timer-ok);">Prêt</div>
+            <div class="timer-display" id="timer">05:00</div>
+        </div>
+        
+        <button class="btn-action" onclick="toggleTimer()" id="btn-start">DÉMARRER</button>
+        <button class="btn-download" id="btn-download">💾 Télécharger mon enregistrement audio</button>
+        <button class="btn-danger" onclick="resetTimer()" style="width: 100%; margin-top: 8px; padding: 8px;">Réinitialiser</button>
+    </div>
+
+</div>
+
+<script>
+    let duration = 300; 
+    let timeLeft = duration;
+    let timerId = null;
+    let isRunning = false;
+    let localStream = null;
+    let scrollSpeedMultiplier = 1.0; 
+
+    let mediaRecorder = null;
+    let recordedChunks = [];
+
+    const timerDisplay = document.getElementById('timer');
+    const fullscreenTimerDisplay = document.getElementById('fullscreen-timer');
+    const timelineBar = document.getElementById('timeline-bar-progress');
+    const timerStatus = document.getElementById('timer-status');
+    const startButton = document.getElementById('btn-start');
+    
+    const prompterWrapper = document.getElementById('prompter-wrapper');
+    const prompterBoxUnder = document.getElementById('prompter-box-under');
+    const prompterBoxOver = document.getElementById('prompter-box-over');
+    const prompterTextUnder = document.getElementById('prompter-text-under');
+    const prompterTextOver = document.getElementById('prompter-text-over');
+    
+    const textInput = document.getElementById('text-input');
+    const fontSizeRange = document.getElementById('font-size-range');
+    const fontSizeVal = document.getElementById('font-size-val');
+    
+    const micPlaceholder = document.getElementById('mic-placeholder');
+    const recBadge = document.getElementById('rec-badge');
+    const downloadBtn = document.getElementById('btn-download');
+    const speedRange = document.getElementById('speed-range');
+    const speedVal = document.getElementById('speed-val');
+    const fontSelect = document.getElementById('font-select');
+
+    window.onload = function() {
+        const savedText = localStorage.getItem('prompter_mobile_text');
+        if (savedText) { textInput.value = savedText; loadText(); } else { loadText(); }
+        const savedFontSize = localStorage.getItem('prompter_mobile_font_size');
+        if (savedFontSize) { fontSizeRange.value = savedFontSize; changeFontSize(savedFontSize); }
+        const savedSpeed = localStorage.getItem('prompter_mobile_speed');
+        if (savedSpeed) { speedRange.value = savedSpeed; changeSpeed(savedSpeed); }
+        const savedFont = localStorage.getItem('prompter_mobile_font_family');
+        if (savedFont) { fontSelect.value = savedFont; changeFontFamily(savedFont); }
+
+        initMicrophone();
+    };
+
+    textInput.addEventListener('input', () => {
+        localStorage.setItem('prompter_mobile_text', textInput.value);
+    });
+
+    function clearText() {
+        if (confirm("Effacer tout le texte mobile ?")) {
+            textInput.value = "";
+            localStorage.removeItem('prompter_mobile_text');
+            loadText();
+        }
+    }
+
+    function changeFontSize(val) {
+        fontSizeVal.textContent = val;
+        prompterTextUnder.style.fontSize = `${val}rem`;
+        prompterTextOver.style.fontSize = `${val}rem`;
+        localStorage.setItem('prompter_mobile_font_size', val);
+    }
+
+    // PLEIN ÉCRAN AUTOMATIQUE
+    function enterFullscreen() {
+        if (prompterWrapper.requestFullscreen) {
+            prompterWrapper.requestFullscreen();
+        } else if (prompterWrapper.webkitRequestFullscreen) {
+            prompterWrapper.webkitRequestFullscreen();
+        } else if (prompterWrapper.msRequestFullscreen) {
+            prompterWrapper.msRequestFullscreen();
+        }
+    }
+
+    function exitFullscreen() {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        }
+    }
+
+    function changeSpeed(val) {
+        scrollSpeedMultiplier = parseFloat(val);
+        speedVal.textContent = val;
+        localStorage.setItem('prompter_mobile_speed', val);
+        if (isRunning) { stopScrolling(); startScrolling(); }
+    }
+
+    function changeFontFamily(val) {
+        prompterTextUnder.style.fontFamily = val;
+        prompterTextOver.style.fontFamily = val;
+        localStorage.setItem('prompter_mobile_font_family', val);
+    }
+
+    async function initMicrophone() {
+        try {
+            // Uniquement l'audio
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: false, 
+                audio: true 
+            });
+            localStream = stream;
+            micPlaceholder.innerHTML = "<span style='color: #2ecc71; font-weight: bold;'>🎙️ Microphone activé et prêt</span>";
+        } catch (error) {
+            console.error("Erreur d'accès au micro : ", error);
+            micPlaceholder.innerHTML = "<span style='color: #e74c3c; font-size:0.8rem;'>Microphone indisponible.<br>Vérifiez les autorisations de votre navigateur.</span>";
+        }
+    }
+
+    function formatTextWithMarkers(text) {
+        if (text === "") return "[Chargez votre texte pour commencer...]";
+        let cleanText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        cleanText = cleanText.replace(/\[(.*?)\]/g, function(match, content) {
+            if (content.toLowerCase() === 'pause') {
+                return '<span class="marker-tag pause-style">[' + content + ']</span>';
+            } else {
+                return '<span class="marker-tag">[' + content + ']</span>';
+            }
+        });
+        return cleanText.replace(/\n/g, '<br><br>');
+    }
+
+    function loadText() {
+        const rawText = textInput.value.trim();
+        const processedText = formatTextWithMarkers(rawText);
+        
+        prompterTextUnder.innerHTML = processedText;
+        prompterTextOver.innerHTML = processedText;
+        
+        clearInterval(timerId);
+        stopScrolling();
+        isRunning = false;
+        timeLeft = duration;
+        currentScrollY = 0;
+        prompterBoxUnder.scrollTop = 0;
+        prompterBoxOver.scrollTop = 0;
+        
+        startButton.textContent = "DÉMARRER";
+        startButton.style.background = 'var(--timer-ok)';
+        timerStatus.textContent = "Prêt";
+        timerStatus.style.color = 'var(--timer-ok)';
+        updateDisplay();
+    }
+
+    function updateDisplay() {
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        
+        timerDisplay.textContent = timeString;
+        fullscreenTimerDisplay.textContent = timeString;
+        
+        const elapsedSeconds = duration - timeLeft;
+        const progressPercentage = (elapsedSeconds / duration) * 100;
+        timelineBar.style.width = `${progressPercentage}%`;
+
+        if (duration === 300) {
+            if (elapsedSeconds <= 180) {
+                timelineBar.style.backgroundColor = '#2ecc71'; 
+                fullscreenTimerDisplay.style.color = '#2ecc71';
+            } else if (elapsedSeconds > 180 && elapsedSeconds <= 240) {
+                timelineBar.style.backgroundColor = '#f39c12';
+                fullscreenTimerDisplay.style.color = '#f39c12';
+            } else {
+                timelineBar.style.backgroundColor = '#e74c3c';
+                fullscreenTimerDisplay.style.color = '#e74c3c';
+            }
+        } else {
+            const tier = duration / 3;
+            if (elapsedSeconds <= tier * 2) {
+                timelineBar.style.backgroundColor = '#2ecc71';
+                fullscreenTimerDisplay.style.color = '#2ecc71';
+            } else if (elapsedSeconds > tier * 2 && elapsedSeconds <= tier * 2.6) {
+                timelineBar.style.backgroundColor = '#f39c12';
+                fullscreenTimerDisplay.style.color = '#f39c12';
+            } else {
+                timelineBar.style.backgroundColor = '#e74c3c';
+                fullscreenTimerDisplay.style.color = '#e74c3c';
+            }
+        }
+
+        if (timeLeft <= 60 && timeLeft > 0) {
+            timerDisplay.style.color = 'var(--timer-warning)';
+            timerStatus.textContent = "Moins d'une minute !";
+        } else if (timeLeft === 0) {
+            timerDisplay.style.color = 'var(--timer-danger)';
+            timerStatus.textContent = "Temps expiré !";
+        } else {
+            timerDisplay.style.color = 'var(--timer-ok)';
+            timerStatus.textContent = "En cours...";
+        }
+    }
+
+    function setTimer(seconds, buttonElement) {
+        resetTimer();
+        duration = seconds;
+        timeLeft = seconds;
+        document.querySelectorAll('.btn-time').forEach(btn => btn.classList.remove('active'));
+        buttonElement.classList.add('active');
+        updateDisplay();
+    }
+
+    let animationFrameId = null;
+    let currentScrollY = 0;
+    let lastTimestamp = null;
+
+    function startScrolling() {
+        const maxScroll = prompterBoxUnder.scrollHeight - prompterBoxUnder.clientHeight;
+        const baseSpeed = maxScroll / (duration * 1000); 
+
+        currentScrollY = prompterBoxUnder.scrollTop;
+        lastTimestamp = null;
+
+        function step(timestamp) {
+            if (!isRunning) return;
+            if (!lastTimestamp) lastTimestamp = timestamp;
+
+            const elapsed = timestamp - lastTimestamp;
+            lastTimestamp = timestamp;
+
+            currentScrollY += elapsed * baseSpeed * scrollSpeedMultiplier;
+            
+            if (currentScrollY >= maxScroll) currentScrollY = maxScroll;
+
+            prompterBoxUnder.scrollTop = currentScrollY;
+            prompterBoxOver.scrollTop = currentScrollY;
+
+            if (currentScrollY < maxScroll) {
+                animationFrameId = requestAnimationFrame(step);
+            }
+        }
+        animationFrameId = requestAnimationFrame(step);
+    }
+
+    function stopScrolling() { cancelAnimationFrame(animationFrameId); }
+
+    function startRecording() {
+        recordedChunks = [];
+        let options = { mimeType: 'audio/webm' };
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { mimeType: 'audio/ogg' };
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { mimeType: '' }; // Fallback universel
+
+        try { mediaRecorder = new MediaRecorder(localStream, options); } catch (e) { mediaRecorder = new MediaRecorder(localStream); }
+
+        mediaRecorder.ondataavailable = function(e) {
+            if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = function() {
+            const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+            const url = URL.createObjectURL(blob);
+            downloadBtn.style.display = 'block';
+            downloadBtn.onclick = function() {
+                const a = document.createElement('a');
+                a.href = url;
+                let ext = 'webm';
+                if (mediaRecorder.mimeType.includes('ogg')) ext = 'ogg';
+                else if (mediaRecorder.mimeType.includes('mp4')) ext = 'mp4';
+                else if (mediaRecorder.mimeType.includes('wav')) ext = 'wav';
+                a.download = `enregistrement_oral.${ext}`;
+                a.click();
+            };
+        };
+        mediaRecorder.start(1000);
+        recBadge.style.display = 'flex';
+    }
+
+    function stopRecording() {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+        recBadge.style.display = 'none';
+    }
+
+    function toggleTimer() {
+        if (!localStream) { alert("Veuillez d'abord autoriser le microphone."); return; }
+
+        if (isRunning) {
+            clearInterval(timerId);
+            stopScrolling();
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.pause();
+                recBadge.style.background = '#7f8c8d';
+            }
+            startButton.textContent = "REPRENDRE";
+            startButton.style.background = 'var(--timer-warning)';
+            isRunning = false;
+        } else {
+            isRunning = true;
+            startButton.textContent = "PAUSE";
+            startButton.style.background = 'var(--timer-danger)';
+            downloadBtn.style.display = 'none';
+            
+            // BASCULE EN PLEIN ÉCRAN AUTOMATIQUE
+            enterFullscreen();
+            
+            startScrolling();
+
+            if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+                startRecording();
+            } else if (mediaRecorder.state === 'paused') {
+                mediaRecorder.resume();
+                recBadge.style.background = 'rgba(231, 76, 60, 0.9)';
+            }
+
+            timerId = setInterval(() => {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    updateDisplay();
+                } else {
+                    clearInterval(timerId);
+                    stopScrolling();
+                    stopRecording();
+                    isRunning = false;
+                    startButton.textContent = "FINI";
+                    startButton.style.background = '#95a5a6';
+                }
+            }, 1000);
+        }
+    }
+
+    function resetTimer() {
+        clearInterval(timerId);
+        stopScrolling();
+        stopRecording();
+        isRunning = false;
+        timeLeft = duration;
+        currentScrollY = 0;
+        prompterBoxUnder.scrollTop = 0;
+        prompterBoxOver.scrollTop = 0;
+        startButton.textContent = "DÉMARRER";
+        startButton.style.background = 'var(--timer-ok)';
+        timerStatus.textContent = "Prêt";
+        updateDisplay();
+    }
+</script>
+
+</body>
+</html>
